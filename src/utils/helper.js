@@ -24,8 +24,6 @@ exports.findChildIdsToDelete = async (subTasks, subTaskObj, cb) => {
                 (item) => item.status === "IN_PROGRESS"
               );
 
-              console.log(">>>?????", isInProgress);
-
               if (isInProgress) {
                 //removing duplicate elements and removing the inProgress child's parentElement
                 finalIds = [...new Set(finalIds)];
