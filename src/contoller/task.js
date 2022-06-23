@@ -106,8 +106,11 @@ const deleteTask = (req, res) => {
         //   ]
         // }
         // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>eg format ENDS>>>>>>>>>>>>>>>>>>>>>>>
+        let totalArrayLength =
+          Object.values(subTasks).flat().length + Object.keys(subTasks).length;
 
-        if (Object.keys(subTasks).length > 0) {
+        if (totalArrayLength !== taskIds.length) {
+          console.log(">>>>>subTasks", subTasks);
           //finding the related child Id's who are not in  IN_PROGRSS state
           helper.findChildIdsToDelete(subTasks, subTaskObj, (value) => {
             console.log(">>>>>>>>>>>>from main", value);
@@ -130,6 +133,8 @@ const deleteTask = (req, res) => {
               });
             }
           });
+        } else if (totalArrayLength === taskIds.length) {
+          deleteMultipleTask(req, res);
         } else {
           res.status(405).send({
             status: "failed",
