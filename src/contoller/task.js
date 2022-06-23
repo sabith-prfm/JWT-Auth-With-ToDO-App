@@ -11,29 +11,23 @@ const createTask = async (req, res) => {
 
     //optional queries based on completionDate found
     if (completionDate) {
-      qry = `insert into tasks(id,taskName,completionDate,status) values('${taskId}','${taskName}','${completionDate}','${taskStatus}')`;
+      qry = `insert into childTable(taskId,taskName,status,completionDate,parentId) values('${taskId}','${taskName}','${taskStatus}','${completionDate}','${parentId}')`;
     } else {
-      qry = `insert into tasks(id,taskName,completionDate,status) values('${taskId}','${taskName}',NULL,'${taskStatus}')`;
+      qry = `insert into childTable(taskId,taskName,status,completionDate,parentId) values('${taskId}','${taskName}','${taskStatus}',NULL,'${parentId}')`;
     }
 
     conn.mySql.query(qry, (err, result) => {
       if (err) {
         res.status(500).send({ message: "Unable to create Tasks", data: err });
       } else {
-        //if parentId is Found makes an update in taskRelation table
-        if (parentId) {
-          let relationInsertQuery = `insert into taskRelation(taskId,parentId) values('${taskId}','${parentId}')`;
+        let relationInsertQuery = `select * from childTable where taskId='${taskId}'`;
 
-          conn.mySql.query(
-            relationInsertQuery,
-            (err, succesResp) => succesResp
-          );
-        }
-
-        res.status(200).send({
-          status: "success",
-          message: "Tasks created successfully",
-          data: result,
+        conn.mySql.query(relationInsertQuery, (err, succesResp) => {
+          res.status(200).send({
+            status: "success",
+            message: "Tasks created successfully",
+            data: succesResp,
+          });
         });
       }
     });
@@ -49,7 +43,7 @@ const deleteMultipleTask = (req, res) => {
   try {
     let { taskIds } = req.body;
 
-    let qry = "DELETE FROM tasks WHERE (id) IN (?)";
+    let qry = "DELETE FROM childTable WHERE (taskId) IN (?)";
 
     conn.mySql.query(qry, [taskIds], (err, result) => {
       if (err) {
@@ -58,7 +52,7 @@ const deleteMultipleTask = (req, res) => {
         res.status(200).send({
           status: "success",
           message: "Multiple Tasks Deleted successfully",
-          data: result,
+          data: taskIds,
         });
       }
     });
@@ -73,9 +67,7 @@ const deleteTask = (req, res) => {
   try {
     let { taskIds } = req.body;
 
-    let idsToDelete = [];
-
-    let selectQry = "select * from taskRelation WHERE (parentId) IN (?)";
+    let selectQry = "select * from childTable WHERE (parentId) IN (?)";
 
     conn.mySql.query(selectQry, [taskIds], (err, result) => {
       if (err) {
@@ -89,7 +81,14 @@ const deleteTask = (req, res) => {
           let filteredArray = result?.filter(
             (item) => item.parentId === inputId
           );
-          subTasks[inputId] = filteredArray?.map((item) => item.taskId);
+
+          let isInProgress = filteredArray?.find(
+            (item) => item.status === "IN_PROGRESS"
+          );
+
+          if (isInProgress === undefined) {
+            subTasks[inputId] = filteredArray?.map((item) => item.taskId);
+          }
         });
 
         // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> eg: format of subTasks starts>>>>>>>>>>>>>>>>>>>>>>>
@@ -108,15 +107,36 @@ const deleteTask = (req, res) => {
         // }
         // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>eg format ENDS>>>>>>>>>>>>>>>>>>>>>>>
 
-        //finding the related child Id's who are not in  IN_PROGRSS state
-        helper.findChildIdsToDelete(subTasks, subTaskObj, (value) => {
-          console.log(">>>>>>>>>>>>from main", value);
-          res.status(200).send({
-            status: "success",
-            message: "Tasks Deleted successfully",
-            data: value,
+        if (Object.keys(subTasks).length > 0) {
+          //finding the related child Id's who are not in  IN_PROGRSS state
+          helper.findChildIdsToDelete(subTasks, subTaskObj, (value) => {
+            console.log(">>>>>>>>>>>>from main", value);
+
+            if (Object.keys(value).length > 0) {
+              let arr = [...Object.keys(value), Object.values(value)].flat(3);
+
+              req.body.taskIds = [...new Set(arr)];
+              deleteMultipleTask(req, res);
+              // res.status(200).send({
+              //   status: "success",
+              //   message: "Tasks Deleted successfully",
+              //   data: [...new Set(arr)],
+              // });
+            } else {
+              res.status(405).send({
+                status: "failed",
+                message: "Unable To Delete, Children are in Progress state",
+                data: {},
+              });
+            }
           });
-        });
+        } else {
+          res.status(405).send({
+            status: "failed",
+            message: "Unable To Delete, Children are in Progress state",
+            data: {},
+          });
+        }
       }
     });
   } catch (err) {
