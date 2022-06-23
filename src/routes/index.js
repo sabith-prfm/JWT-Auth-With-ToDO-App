@@ -21,13 +21,13 @@ let routes = (app) => {
     TaskService.createTask              //controller for the API
   );
 
-  router.post(
-    "/secureApi/delete-multiple-task",
-    TokenService.verifyToken,
-    Validations.validate("deleteMultipleTask"),
-    Validations.isParametersValid,
-    TaskService.deleteMultipleTask
-  );
+  // router.post(
+  //   "/secureApi/delete-multiple-task",
+  //   TokenService.verifyToken,
+  //   Validations.validate("deleteMultipleTask"),
+  //   Validations.isParametersValid,
+  //   TaskService.deleteMultipleTask
+  // );
 
   router.post(
     "/secureApi/delete-task",
