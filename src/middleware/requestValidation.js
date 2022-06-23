@@ -25,7 +25,7 @@ exports.validate = (method) => {
     }
 
     case "deleteTask": {
-      return [body("taskIds", "taskIds Required").exists()];
+      return [body("taskIds", "taskIds Required as Array").exists().isArray()];
     }
   }
 };
